@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import Constants from "expo-constants";
 import type { ProgressUpdate } from "@agent-monorepo/types";
+import { Stack } from "expo-router";
 
 type UpdateItem = ProgressUpdate & { key: string };
 
