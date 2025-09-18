@@ -16,7 +16,7 @@ const runRequestSchema = z.object({
 });
 
 async function runJob(req: Request, res: Response) {
-  const body = await req.body;
+  const body = req.method === "GET" ? req.query : req.body;
 
   console.info("Received job run request", body);
 
@@ -28,7 +28,11 @@ async function runJob(req: Request, res: Response) {
   res.header("Connection", "keep-alive");
   res.flushHeaders(); // Flush the headers to establish SSE with client
 
-  const { id, prompt } = runRequestSchema.parse(await req.body);
+  const { id, prompt } = runRequestSchema.parse(
+    req.method === "GET"
+      ? { id: String((body as any).id), prompt: String((body as any).prompt) }
+      : await req.body
+  );
   try {
     const gemini = createGoogleGenerativeAI({
       apiKey: process.env.GEMINI_API_KEY!,
@@ -37,7 +41,7 @@ async function runJob(req: Request, res: Response) {
     const agent = new Agent({
       model: gemini("gemini-2.5-flash"),
       tools: {
-        web_search: firecrawlSearchTool,
+        web_search: braveSearchTool,
         web_scrape: firecrawlScrapeTool,
         send_result: sendResultTool,
       },

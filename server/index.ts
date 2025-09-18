@@ -16,6 +16,7 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 app.post("/v1/run", runJob);
+app.get("/v1/run", runJob);
 
 app.listen(3000, () => {
   console.log("Server listening on port 3000");

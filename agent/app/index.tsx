@@ -113,6 +113,104 @@ export default function Index() {
         return;
       }
 
+      // On mobile (React Native), fetch streaming often isn't available.
+      // Use an XHR streaming approach there which exposes incremental
+      // responseText via onprogress. Otherwise use fetch streaming.
+      const isMobile = Platform.OS !== "web";
+      if (isMobile) {
+        await new Promise<void>((resolve, reject) => {
+          // Use global XMLHttpRequest (available in RN/Expo)
+          const XHR = (global as any).XMLHttpRequest || (XMLHttpRequest as any);
+          const xhr = new XHR();
+          let lastIndex = 0;
+          let buffer = "";
+
+          const processBuffer = () => {
+            buffer = buffer.replace(/\r\n/g, "\n");
+            let idx;
+            while ((idx = buffer.indexOf("\n\n")) !== -1) {
+              const rawEvent = buffer.slice(0, idx).trim();
+              buffer = buffer.slice(idx + 2);
+
+              const dataLine = rawEvent
+                .split("\n")
+                .find((l: string) => l.startsWith("data:"));
+              if (!dataLine) continue;
+              const payload = dataLine.replace(/^data:\s?/, "");
+              try {
+                const update = JSON.parse(payload) as ProgressUpdate;
+                if (update && (update as any).timestamp) {
+                  (update as any).timestamp = new Date(
+                    (update as any).timestamp
+                  ) as any;
+                }
+                console.info("XHR stream received update:", update);
+                appendUpdate(update);
+                if (update.isFinal) {
+                  try {
+                    xhr.abort();
+                  } catch {}
+                  abortRef.current = null;
+                  setIsRunning(false);
+                  resolve();
+                  return;
+                }
+              } catch (e) {
+                // ignore JSON parse errors
+              }
+            }
+          };
+
+          xhr.open("POST", "http://localhost:3000/v1/run");
+          xhr.setRequestHeader("Content-Type", "application/json");
+
+          xhr.onreadystatechange = () => {
+            if (xhr.readyState === 4) {
+              // Completed
+              // Process any remaining buffered data
+              const remaining = xhr.responseText?.slice(lastIndex) || "";
+              if (remaining) {
+                buffer += remaining;
+                processBuffer();
+              }
+              resolve();
+            }
+          };
+
+          xhr.onprogress = () => {
+            try {
+              const text = xhr.responseText || "";
+              if (text.length > lastIndex) {
+                const chunk = text.slice(lastIndex);
+                lastIndex = text.length;
+                buffer += chunk;
+                processBuffer();
+              }
+            } catch (e) {
+              // ignore incremental read errors
+            }
+          };
+
+          xhr.onerror = () => {
+            reject(new Error("Network error during XHR streaming"));
+          };
+
+          // Wire abort controller
+          const onAbort = () => {
+            try {
+              xhr.abort();
+            } catch {}
+            abortRef.current = null;
+            resolve();
+          };
+          controller.signal.addEventListener("abort", onAbort);
+
+          xhr.send(JSON.stringify({ id, prompt }));
+        });
+        // After XHR finishes, exit runJob (state already updated when final arrives)
+        return;
+      }
+
       // Fallback to POST streaming via fetch
       const res = await fetch("http://localhost:3000/v1/run", {
         method: "POST",
@@ -124,24 +222,21 @@ export default function Index() {
       if (!res.ok) {
         throw new Error(`Request failed (${res.status})`);
       }
-      if (res.body && "getReader" in res.body) {
-        // Parse SSE from ReadableStream (web + some native runtimes)
-        const reader = res.body.getReader();
+      if (res.body) {
+        // Handle streaming bodies that expose getReader() (ReadableStream)
+        // or async-iterable stream (Node/React Native environments). If
+        // neither is available, fall back to reading the full text below.
         const decoder = new TextDecoder("utf-8");
         let buffer = "";
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-
-          // SSE events are separated by double newlines
+        const processBuffer = () => {
+          // Normalize CRLF to LF for consistent splitting
+          buffer = buffer.replace(/\r\n/g, "\n");
           let idx;
           while ((idx = buffer.indexOf("\n\n")) !== -1) {
             const rawEvent = buffer.slice(0, idx).trim();
             buffer = buffer.slice(idx + 2);
 
-            // We only care about lines starting with 'data:'
             const dataLine = rawEvent
               .split("\n")
               .find((l) => l.startsWith("data:"));
@@ -149,13 +244,12 @@ export default function Index() {
             const payload = dataLine.replace(/^data:\s?/, "");
             try {
               const update = JSON.parse(payload) as ProgressUpdate;
-              // Normalize timestamp to Date instance for display safety
               if (update && (update as any).timestamp) {
                 (update as any).timestamp = new Date(
                   (update as any).timestamp
                 ) as any;
               }
-              console.info("ReadableStream received update:", update);
+              console.info("Stream received update:", update);
               appendUpdate(update);
               if (update.isFinal) {
                 abortRef.current?.abort();
@@ -166,6 +260,27 @@ export default function Index() {
               // ignore JSON parse errors for non-data lines
             }
           }
+        };
+
+        // ReadableStream in browsers (getReader)
+        if (typeof (res.body as any).getReader === "function") {
+          const reader = (res.body as any).getReader();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            processBuffer();
+          }
+          // Async-iterable stream (Node.js / some RN fetch polyfills)
+        } else if (
+          typeof (res.body as any)[Symbol.asyncIterator] === "function"
+        ) {
+          for await (const chunk of res.body as any) {
+            buffer += decoder.decode(chunk, { stream: true });
+            processBuffer();
+          }
+        } else {
+          // Fall through to full-text fallback below
         }
       } else {
         // Fallback: read entire response text (non-streaming)

@@ -16,7 +16,7 @@ The frontend interacts with the server via a single endpoint:
 
 The `ProgressUpdate` interface is defined in the shared types package. The frontend must:
 
-1. Generate a unique `id` for each job.
+1. Generate a unique `id` for each job. Use a random string generator, not UUID.
 2. Send the POST request with `Content-Type: application/json`.
 3. Listen to the SSE stream and parse JSON data.
 4. Handle connection errors and display appropriate messages.
@@ -51,13 +51,5 @@ Use React's built-in state management for simplicity:
 ## Styling
 
 Design the UI with a highly clean and minimal aesthetic. Use a simple color palette, ample white space, and clean typography. Focus on usability and readability over complex visual elements.
-
-## Dependencies
-
-Add these to your `package.json`:
-
-- `expo`: For React Native development.
-- `uuid`: For generating unique job IDs.
-- `@agent-monorepo/types`: For shared type definitions.
 
 This spec provides instructions for building the frontend. Focus on a clean, responsive UI that makes it easy for users to interact with the AI agent.
