@@ -9,6 +9,9 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@agent-monorepo/types": "workspace:*",
+    "@ai-sdk/google": "^2.0.14",
+    "@mendable/firecrawl-js": "^4.3.5",
     "ai": "^5.0.46",
     "express": "^5.1.0"
   }

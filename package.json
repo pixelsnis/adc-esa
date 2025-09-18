@@ -2,10 +2,19 @@
   "name": "agent-monorepo",
   "module": "index.ts",
   "type": "module",
+  "workspaces": [
+    "agent",
+    "server",
+    "types"
+  ],
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@types/express": "^5.0.3",
+    "zod": "^4.1.9"
   }
 }
