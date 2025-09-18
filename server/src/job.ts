@@ -15,6 +15,9 @@ async function runJob(req: Request, res: Response) {
 
   console.info("Received job run request", body);
 
+  // Set CORS headers for SSE
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Cache-Control");
   res.header("Content-Type", "text/event-stream");
   res.header("Cache-Control", "no-cache");
   res.header("Connection", "keep-alive");
