@@ -1,4 +1,4 @@
-import Firecrawl from "@mendable/firecrawl-js";
+import Firecrawl, { type SearchData } from "@mendable/firecrawl-js";
 import { tool } from "ai";
 import fetch from "node-fetch";
 import { z } from "zod";
@@ -95,6 +95,29 @@ const braveSearchTool = tool({
   },
 });
 
+const firecrawlSearchTool = tool({
+  name: "web_search",
+  description: "Search the web for relevant information and links.",
+  inputSchema: z.object({
+    query: z.string(),
+  }),
+  outputSchema: z.object({
+    results: z.custom<SearchData>(),
+  }),
+  execute: async ({ query }: { query: string }) => {
+    try {
+      const firecrawl = new Firecrawl({
+        apiKey: process.env.FIRECRAWL_API_KEY!,
+      });
+      const results = await firecrawl.search(query, { limit: 5 });
+      return { results };
+    } catch (err) {
+      console.error("Error executing web search tool:", err);
+      throw err;
+    }
+  },
+});
+
 const firecrawlScrapeTool = tool({
   name: "web_scrape",
   description: "Scrape the main content from a webpage URL.",
@@ -132,4 +155,9 @@ const sendResultTool = tool({
   },
 });
 
-export { braveSearchTool, firecrawlScrapeTool, sendResultTool };
+export {
+  braveSearchTool,
+  firecrawlSearchTool,
+  firecrawlScrapeTool,
+  sendResultTool,
+};

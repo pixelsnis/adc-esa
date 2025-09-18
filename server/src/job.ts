@@ -2,7 +2,12 @@ import { type ProgressUpdate } from "@agent-monorepo/types";
 import type { Request, Response } from "express";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { Experimental_Agent as Agent, hasToolCall } from "ai";
-import { braveSearchTool, firecrawlScrapeTool, sendResultTool } from "./tools";
+import {
+  braveSearchTool,
+  firecrawlScrapeTool,
+  firecrawlSearchTool,
+  sendResultTool,
+} from "./tools";
 import z from "zod";
 
 const runRequestSchema = z.object({
@@ -32,7 +37,7 @@ async function runJob(req: Request, res: Response) {
     const agent = new Agent({
       model: gemini("gemini-2.5-flash"),
       tools: {
-        web_search: braveSearchTool,
+        web_search: firecrawlSearchTool,
         web_scrape: firecrawlScrapeTool,
         send_result: sendResultTool,
       },
