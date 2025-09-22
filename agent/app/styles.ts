@@ -128,4 +128,16 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     color: "#9aa0a6",
   },
+  textBold: {
+    fontWeight: "bold",
+  },
+  textItalic: {
+    fontStyle: "italic",
+  },
+  textCode: {
+    fontFamily: "monospace",
+    backgroundColor: "#f0f0f0",
+    paddingHorizontal: 4,
+    borderRadius: 4,
+  },
 });

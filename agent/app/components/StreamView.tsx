@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, type ReactNode } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import type { ProgressUpdate } from "@agent-monorepo/types";
 import { styles } from "../styles";
@@ -29,6 +29,47 @@ export function StreamView({
     );
   }, [updates.length]);
 
+  const parseMarkdown = (text: string): ReactNode[] => {
+    const nodes: ReactNode[] = [];
+    let pos = 0;
+    const patterns = [
+      { regex: /\*\*([^*]+?)\*\*/g, style: styles.textBold, capture: 1 },
+      { regex: /\*([^*]+?)\*/g, style: styles.textItalic, capture: 1 },
+      { regex: /`([^`]+?)`/g, style: styles.textCode, capture: 1 },
+    ];
+    while (pos < text.length) {
+      let nextMatch: { pat: any; m: RegExpExecArray } | null = null;
+      let minIndex = Infinity;
+      for (const pat of patterns) {
+        pat.regex.lastIndex = pos;
+        const m = pat.regex.exec(text);
+        if (m && m.index >= pos && m.index < minIndex) {
+          minIndex = m.index;
+          nextMatch = { pat, m };
+        }
+      }
+      if (nextMatch) {
+        const plain = text.slice(pos, nextMatch.m.index);
+        if (plain) {
+          nodes.push(<Text>{plain}</Text>);
+        }
+        nodes.push(
+          <Text style={nextMatch.pat.style}>
+            {nextMatch.m[nextMatch.pat.capture]}
+          </Text>
+        );
+        pos = nextMatch.m.index + nextMatch.m[0].length;
+      } else {
+        const remaining = text.slice(pos);
+        if (remaining) {
+          nodes.push(<Text>{remaining}</Text>);
+        }
+        break;
+      }
+    }
+    return nodes;
+  };
+
   return (
     <>
       <View style={styles.metaRow}>
@@ -56,7 +97,7 @@ export function StreamView({
               </Text>
               {u.messages.map((m, i) => (
                 <Text key={`${u.key}-m-${i}`} style={styles.updateText}>
-                  {m}
+                  {parseMarkdown(m)}
                 </Text>
               ))}
               {u.isFinal ? <Text style={styles.finalBadge}>Final</Text> : null}
