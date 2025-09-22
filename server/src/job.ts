@@ -1,13 +1,7 @@
 import { type ProgressUpdate } from "@agent-monorepo/types";
 import type { Request, Response } from "express";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { Experimental_Agent as Agent, hasToolCall } from "ai";
-import {
-  braveSearchTool,
-  firecrawlScrapeTool,
-  firecrawlSearchTool,
-  sendResultTool,
-} from "./tools";
+import { Experimental_Agent as Agent, gateway, hasToolCall } from "ai";
+import { braveSearchTool, firecrawlScrapeTool, sendResultTool } from "./tools";
 import z from "zod";
 
 const runRequestSchema = z.object({
@@ -34,12 +28,12 @@ async function runJob(req: Request, res: Response) {
       : await req.body
   );
   try {
-    const gemini = createGoogleGenerativeAI({
-      apiKey: process.env.GEMINI_API_KEY!,
-    });
+    // const gemini = createGoogleGenerativeAI({
+    //   apiKey: process.env.GEMINI_API_KEY!,
+    // });
 
     const agent = new Agent({
-      model: gemini("gemini-2.5-flash"),
+      model: gateway("openai/gpt-oss-120b"),
       tools: {
         web_search: braveSearchTool,
         web_scrape: firecrawlScrapeTool,
@@ -49,6 +43,9 @@ async function runJob(req: Request, res: Response) {
       You are an AI assistant that performs long-running tasks by breaking them down into smaller tasks and using tools to complete them.
       You have access to several tools, including web search and web scraping.
       You may call the "send_result" tool to declare that the job is finished and provide the final result.
+      Be inquisitive and explorative.
+      Be direct and concise in your answers. Do not be verbose unless required for the task.
+      When generating text, you must always respond in plain text - do not use markdown, tables, etc.
       `,
       stopWhen: [hasToolCall("send_result")],
       onStepFinish: async (step) => {

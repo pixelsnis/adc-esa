@@ -12,19 +12,23 @@ export function useAgentRunner() {
   const abortRef = useRef<AbortController | null>(null);
 
   const latestInputTokens = useMemo(() => {
-    for (let i = updates.length - 1; i >= 0; i--) {
-      if (typeof updates[i].inputTokens === "number")
-        return updates[i].inputTokens!;
+    // Sum all numeric inputTokens across updates to report total input tokens used
+    let total = 0;
+    for (let i = 0; i < updates.length; i++) {
+      const v = updates[i].inputTokens;
+      if (typeof v === "number" && Number.isFinite(v)) total += v;
     }
-    return 0;
+    return total;
   }, [updates]);
 
   const latestOutputTokens = useMemo(() => {
-    for (let i = updates.length - 1; i >= 0; i--) {
-      if (typeof updates[i].outputTokens === "number")
-        return updates[i].outputTokens!;
+    // Sum all numeric outputTokens across updates to report total output tokens used
+    let total = 0;
+    for (let i = 0; i < updates.length; i++) {
+      const v = updates[i].outputTokens;
+      if (typeof v === "number" && Number.isFinite(v)) total += v;
     }
-    return 0;
+    return total;
   }, [updates]);
 
   const appendUpdate = useCallback((u: ProgressUpdate) => {
